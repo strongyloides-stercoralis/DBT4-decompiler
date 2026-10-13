@@ -111,11 +111,19 @@ typedef struct BattleRes {
 } BattleRes; /* size 0x50 */
 
 /* File ids used by the loader. */
-#define BTL_FILE_CHARA_DATA 8        /* + character * 2 + side: 0x1000-byte per-member block */
+#ifdef PORT
+/* The Budokai Tenkaichi 4 mod (gPortVariant 1, plat_mem.c) renumbered some of them in its own copy of this code
+   (SLUS_219.78, BtlLoad_StepInitial at 0x127C40); the USA ids are the first value. */
+extern int gPortVariant;
+#define BTL_V(usa, bt4) (gPortVariant ? (bt4) : (usa))
+#else
+#define BTL_V(usa, bt4) (usa)
+#endif
+#define BTL_FILE_CHARA_DATA BTL_V(8, 0xD48) /* + character * 2 + side: 0x1000-byte per-member block */
 #define BTL_FILE_SND_COMMON 0x14A
-#define BTL_FILE_SND_STAGE 0x14E     /* + stage */
-#define BTL_FILE_STAGE 0x171         /* + stage */
-#define BTL_FILE_STAGE_SPLIT 0x198   /* + stage, split-screen version */
+#define BTL_FILE_SND_STAGE BTL_V(0x14E, 0x590)    /* + stage */
+#define BTL_FILE_STAGE BTL_V(0x171, 0x5F3)        /* + stage */
+#define BTL_FILE_STAGE_SPLIT BTL_V(0x198, 0x656)  /* + stage, split-screen version */
 #define BTL_FILE_TRANSITION_3 0x1BF  /* stage change to stage 3 */
 #define BTL_FILE_TRANSITION 0x1C0
 #define BTL_FILE_SCRIPT 0x1FF        /* + setup.script - 1 */
@@ -123,6 +131,8 @@ typedef struct BattleRes {
 #define BTL_FILE_VOICE 0xBDA         /* + character */
 #define BTL_FILE_VOICE_ALT 0xC7B     /* + character, when gSaveData->flags bit 0 */
 #define BTL_FILE_OBJECT 0xC1C        /* + id, for ids >= 0x100 */
+/* The voice bank of a character; `alt` = gSaveData->flags & SAVE_FLAG_VOICE. The mod's routine is at 0x19BD88. */
+#define BTL_VOICE_FILE(chara, alt) ((chara) + BTL_V((alt) ? BTL_FILE_VOICE_ALT : BTL_FILE_VOICE, (alt) ? 0x1D10C : 0x1D012))
 
 #define BTL_STAGE_BUF_SIZE 0x6CB800
 #define BTL_BANK_BUF_SIZE 0x90800
