@@ -405,7 +405,7 @@ s32 BtlLoad_StepChara(BtlJob *job) {
         if (job->modelOnly == 0) {
             file8 = job->animChara * 10 + (BTL_FILE_CHARA + 8);
             file9 = job->unk1C * 10 + (BTL_FILE_CHARA + 9);
-            voice = job->voiceChara + ((gSaveData->flags & SAVE_FLAG_VOICE) ? BTL_FILE_VOICE_ALT : BTL_FILE_VOICE);
+            voice = BTL_VOICE_FILE(job->voiceChara, gSaveData->flags & SAVE_FLAG_VOICE);
             BtlRes_Reload(BattleSide_GetModelSlot(job->side), model, file8, file9);
             res->bank = File_Request3(voice, res->bank, res->bankSize);
             if (!BtlCtrl_IsSwitching(job->side)) {
@@ -500,8 +500,8 @@ s32 BtlLoad_StepInitial(BtlJob *job) {
     case 0:
         res->sndCommon = File_Request3(BTL_FILE_SND_COMMON, NULL, 0);
         res->sndStage = File_Request3(BTL_STAGE_BANK(Battle_GetStartStage()), NULL, 0);
-        res->sndChara[0] = File_Request3(BattleSide_GetStartChara(0) + ((gSaveData->flags & SAVE_FLAG_VOICE) ? BTL_FILE_VOICE_ALT : BTL_FILE_VOICE), NULL, 0);
-        res->sndChara[1] = File_Request3(BattleSide_GetStartChara(1) + ((gSaveData->flags & SAVE_FLAG_VOICE) ? BTL_FILE_VOICE_ALT : BTL_FILE_VOICE), NULL, 0);
+        res->sndChara[0] = File_Request3(BTL_VOICE_FILE(BattleSide_GetStartChara(0), gSaveData->flags & SAVE_FLAG_VOICE), NULL, 0);
+        res->sndChara[1] = File_Request3(BTL_VOICE_FILE(BattleSide_GetStartChara(1), gSaveData->flags & SAVE_FLAG_VOICE), NULL, 0);
         job->state++;
         return 0;
     case 1:
