@@ -320,22 +320,37 @@ void step_data(Iso &iso, const std::string &root) {
         SDL_CreateDirectory(dir.c_str());
         iso.read(f->offset, head, 8);
         memcpy(&count, head + 4, 4);
-        if (memcmp(head, "AFS\0", 4) != 0 || (Uint64)count * 8 + 8 > f->size) {
-            throw Stop{"An archive on the disc (" + f->path + ") is damaged."};
+        char hex[40];
+        snprintf(hex, sizeof(hex), "%02X %02X %02X %02X", head[0], head[1], head[2], head[3]);
+        std::string what = f->path + ": starts with " + hex + ", " + std::to_string(count) + " entries, " + std::to_string(f->size) + " bytes";
+        // "AFS\0" is the usual start; some tools write "AFS " instead
+        if ((memcmp(head, "AFS\0", 4) != 0 && memcmp(head, "AFS ", 4) != 0) || (Uint64)count * 8 + 8 > f->size) {
+            throw Stop{"An archive on the disc (" + f->path + ") is damaged.\n" + what};
         }
         std::vector<Uint32> table((size_t)count * 2);
         iso.read(f->offset + 8, table.data(), table.size() * 4);
         Uint64 inArchive = 0;
+        int clipped = 0;
         for (Uint32 i = 0; i < count; i++) {
             char name[32];
             snprintf(name, sizeof(name), "%05u.bin", i);
-            if ((Uint64)table[i * 2] + table[i * 2 + 1] > f->size) {
-                throw Stop{"An archive on the disc (" + f->path + ") is damaged."};
+            Uint64 off = table[i * 2], len = table[i * 2 + 1];
+            if (len == 0) {
+                off = 0; // an empty entry: its offset means nothing
+            } else if (off >= f->size) {
+                throw Stop{"An archive on the disc (" + f->path + ") is damaged.\n" + what + "\nentry " + std::to_string(i) +
+                           ": offset " + std::to_string(off) + ", size " + std::to_string(len)};
+            } else if (off + len > f->size) {
+                len = f->size - off; // runs past the end of the archive: keep what is there
+                clipped++;
             }
-            copy_out(iso, f->offset + table[i * 2], table[i * 2 + 1], dir + name, buf);
+            copy_out(iso, f->offset + off, len, dir + name, buf);
             files++;
-            inArchive += table[i * 2 + 1];
-            progress(table[i * 2 + 1]);
+            inArchive += len;
+            progress(len);
+        }
+        if (clipped > 0) {
+            say("@note " + std::to_string(clipped) + " entries of " + f->path + " run past its end and were cut short");
         }
         progress(f->size > inArchive ? f->size - inArchive : 0); // the archive's table and padding
     }
