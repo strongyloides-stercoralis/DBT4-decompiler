@@ -56,6 +56,12 @@ jobs:
           name: Tenkaichi3Decomp-windows-x64
           path: port/build/Tenkaichi3Decomp-windows-x64.zip
           if-no-files-found: error
+      # the link map of the Windows program: turns the addresses of a crash report (bt3_crash.txt) into function names
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-map
+          path: port/build/bt3.exe.map
+          if-no-files-found: warn
 
       - name: Draft release
         if: startsWith(github.ref, 'refs/tags/v')
