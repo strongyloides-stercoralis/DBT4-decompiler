@@ -323,18 +323,59 @@ void step_data(Iso &iso, const std::string &root) {
         char hex[40];
         snprintf(hex, sizeof(hex), "%02X %02X %02X %02X", head[0], head[1], head[2], head[3]);
         std::string what = f->path + ": starts with " + hex + ", " + std::to_string(count) + " entries, " + std::to_string(f->size) + " bytes";
+        std::vector<Uint64> offs, lens; // where each file starts in the archive, and its length
         // "AFS\0" is the usual start; some tools write "AFS " instead
-        if ((memcmp(head, "AFS\0", 4) != 0 && memcmp(head, "AFS ", 4) != 0) || (Uint64)count * 8 + 8 > f->size) {
-            throw Stop{"An archive on the disc (" + f->path + ") is damaged.\n" + what};
+        bool plain = (memcmp(head, "AFS\0", 4) == 0 || memcmp(head, "AFS ", 4) == 0) && (Uint64)count * 8 + 8 <= f->size;
+        if (plain) {
+            std::vector<Uint32> table((size_t)count * 2);
+            iso.read(f->offset + 8, table.data(), table.size() * 4);
+            for (Uint32 i = 0; i < count; i++) {
+                offs.push_back(table[i * 2]);
+                lens.push_back(table[i * 2 + 1]);
+            }
+        } else {
+            // No table inside the archive: the Budokai Tenkaichi 4 mod keeps one per archive in BIN/DBZ4.BIN, the way the
+            // game's file library does: a block [0, size, count, count, name] padded to 0x11A bytes, then one 16-bit
+            // length in sectors (2048 bytes) per file. The files follow each other from the start of the archive.
+            const IsoFile *tab = iso.find("BIN/DBZ4.BIN");
+            if (tab == NULL) {
+                throw Stop{"An archive on the disc (" + f->path + ") is damaged.\n" + what + "\nand there is no BIN/DBZ4.BIN to describe it"};
+            }
+            std::vector<Uint8> db((size_t)tab->size);
+            iso.read(tab->offset, db.data(), db.size());
+            std::string want = lower(u.substr(5));
+            size_t at = std::string::npos;
+            for (size_t k = 16; k + want.size() < db.size(); k++) {
+                if (memcmp(db.data() + k, want.data(), want.size()) == 0 && db[k + want.size()] == 0) {
+                    at = k - 16;
+                    break;
+                }
+            }
+            Uint32 blockSize = 0, blockCount = 0;
+            if (at != std::string::npos) {
+                memcpy(&blockSize, db.data() + at + 4, 4);
+                memcpy(&blockCount, db.data() + at + 8, 4);
+            }
+            if (at == std::string::npos || (Uint64)blockSize != 0x11A + (Uint64)blockCount * 2 || at + blockSize > db.size()) {
+                throw Stop{"An archive on the disc (" + f->path + ") is damaged.\n" + what + "\nand BIN/DBZ4.BIN has no usable table for it"};
+            }
+            Uint64 pos = 0;
+            for (Uint32 i = 0; i < blockCount; i++) {
+                Uint16 sectors;
+                memcpy(&sectors, db.data() + at + 0x11A + (size_t)i * 2, 2);
+                offs.push_back(pos);
+                lens.push_back((Uint64)sectors * 2048);
+                pos += (Uint64)sectors * 2048;
+            }
+            count = blockCount;
+            say("@note " + f->path + ": no table inside, using BIN/DBZ4.BIN (" + std::to_string(count) + " files)");
         }
-        std::vector<Uint32> table((size_t)count * 2);
-        iso.read(f->offset + 8, table.data(), table.size() * 4);
         Uint64 inArchive = 0;
         int clipped = 0;
         for (Uint32 i = 0; i < count; i++) {
             char name[32];
             snprintf(name, sizeof(name), "%05u.bin", i);
-            Uint64 off = table[i * 2], len = table[i * 2 + 1];
+            Uint64 off = offs[i], len = lens[i];
             if (len == 0) {
                 off = 0; // an empty entry: its offset means nothing
             } else if (off >= f->size) {
