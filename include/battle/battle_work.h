@@ -111,14 +111,10 @@ typedef struct BattleRes {
 } BattleRes; /* size 0x50 */
 
 /* File ids used by the loader. */
-#ifdef PORT
-/* The Budokai Tenkaichi 4 mod (gPortVariant 1, plat_mem.c) renumbered some of them in its own copy of this code
-   (SLUS_219.78, BtlLoad_StepInitial at 0x127C40); the USA ids are the first value. */
-extern int gPortVariant;
-#define BTL_V(usa, bt4) (gPortVariant ? (bt4) : (usa))
-#else
-#define BTL_V(usa, bt4) (usa)
-#endif
+/* The Budokai Tenkaichi 4 mod renumbered some of them in its own copy of this code (SLUS_219.78,
+   BtlLoad_StepInitial at 0x127C40); the USA ids are the first value. */
+#include "port_variant.h"
+#define BTL_V(usa, bt4) PORT_V(usa, bt4)
 #define BTL_FILE_CHARA_DATA BTL_V(8, 0xD48) /* + character * 2 + side: 0x1000-byte per-member block */
 #define BTL_FILE_SND_COMMON 0x14A
 #define BTL_FILE_SND_STAGE BTL_V(0x14E, 0x590)    /* + stage */

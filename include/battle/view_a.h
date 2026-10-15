@@ -177,7 +177,8 @@ void IconWin_SetIcon(s32 icon);
 #define CHRVIEW_SLOT_COUNT 2
 #define CHRVIEW_MODEL_SIZE 0xCE000
 #define CHRVIEW_FILE_FIRST 0x590   /* model of character c, costume n: 0x590 + c * 10 + n (+4 for the damaged model) */
-#define CHRVIEW_FILE_STAGE 0x197   /* the viewer's backdrop, loaded once by ChrView_Init */
+#include "port_variant.h"
+#define CHRVIEW_FILE_STAGE PORT_V(0x197, 0x619)   /* the viewer's backdrop, loaded once by ChrView_Init */
 #define CHRVIEW_CHARA_COUNT 0xA1
 
 /* One file of a model resource slot (BtlResFile in battle/btl_obj.h). */
@@ -231,6 +232,9 @@ typedef struct ChrViewInfo {
 } ChrViewInfo; /* size 0x3C */
 
 s32 ChrView_GetModelFile(s32 chara, s32 costume, s32 damaged);
+#ifdef PORT
+s32 Bt4_ModelFile(s32 chara, s32 costume, s32 variant); /* the mod's model file of a character, view_a_d.c */
+#endif
 ChrViewInfo *ChrView_GetCharaInfo(u32 chara);
 ChrViewSlot *ChrView_AllocSlot(void);
 s32 ChrView_FreeSlot(ChrViewSlot *slot);

@@ -513,6 +513,12 @@ BtlResWork *BtlRes_GetWork(void) {
 s32 BtlObj_RequestCharaModel(s32 side, s32 chara, s32 costume, s32 variant) {
     s32 model;
 
+#ifdef PORT
+    if (gPortVariant != 0) {
+        /* the mod: SLUS_219.78 at 0x249C60 */
+        return BtlRes_Request(1, Bt4_ModelFile(chara, costume, variant), 0x141E + chara, 0x1518 + chara);
+    }
+#endif
     if (variant != 0) {
         model = chara * 10 + costume + 0x594;
     } else {

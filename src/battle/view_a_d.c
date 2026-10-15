@@ -85,7 +85,37 @@ ChrView *gChrView = NULL;
 #define BTL_OBJ_FLAGS(obj) (*(u32 *)((obj) + 0xA40))
 
 /* File id of a character's model: costume n, or its damaged version. */
+#ifdef PORT
+/* The mod's model files (SLUS_219.78: 0x26BDFC with 0x26BD98 and 0x25D468): the files of every character follow each
+   other from 0x1612, first the costumes then the damaged versions, so the first file of a character is 0x1612 plus
+   twice the number of costumes of all characters before it. That number is the 16-bit value at +0x28 of the
+   character's entry of the table of common file 4 (ChrViewInfo, 0x3C bytes each). */
+static s32 Bt4_ModelCount(s32 chara) {
+    u8 *table = (u8 *)PACK_AT(gCommonRes->data[2], 1);
+
+    return *(u16 *)(table + chara * 0x3C + 0x28);
+}
+
+s32 Bt4_ModelFile(s32 chara, s32 costume, s32 variant) {
+    s32 id = 0x1612;
+    s32 i;
+
+    for (i = 0; i < chara; i++) {
+        id += Bt4_ModelCount(i) * 2;
+    }
+    if (variant != 0) {
+        id += Bt4_ModelCount(chara);
+    }
+    return id + costume;
+}
+#endif
+
 s32 ChrView_GetModelFile(s32 chara, s32 costume, s32 damaged) {
+#ifdef PORT
+    if (gPortVariant != 0) {
+        return Bt4_ModelFile(chara, costume, damaged != 0);
+    }
+#endif
     if (damaged != 0) {
         return chara * 10 + costume + (CHRVIEW_FILE_FIRST + 4);
     }

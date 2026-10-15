@@ -2,6 +2,21 @@
 #include "battle/battle_work.h"
 #include "battle/battle_setup.h"
 #include "battle/btl_seq.h"
+#ifdef PORT
+#include "battle/stg_a.h"
+#include "battle/view_a.h"
+
+/* The mod's stage-change file (SLUS_219.78 at 0x240940): 0x1BB plus the "change kind" byte of the stage's environment
+   block, instead of the fixed 0x1BF (stage 3) / 0x1C0. */
+static s32 Bt4_TransitionFile(void) {
+    s32 id = 0x1BB;
+
+    if (gBtlStage != NULL && gBtlStage->data != NULL) {
+        id += (s8)((StgEnv *)gBtlStage->data->env)->changeKind;
+    }
+    return id;
+}
+#endif
 #include "sys/common.h"
 #include "sys/file.h"
 #include "sys/heap.h"
@@ -247,6 +262,11 @@ s32 BtlLoad_StepStageChange(BtlJob *job) {
         job->state++;
         break;
     case 1:
+#ifdef PORT
+        if (gPortVariant != 0) {
+            res->transition = File_Request3(Bt4_TransitionFile(), NULL, 0);
+        } else
+#endif
         if (job->kind == 3) {
             res->transition = File_Request3(BTL_FILE_TRANSITION_3, NULL, 0);
         } else {
@@ -328,6 +348,11 @@ s32 BtlLoad_StepObject(BtlJob *job) {
         Battle_GetWork()->flags |= BATTLE_FLAG_LOAD_OBJECT;
         id = job->chara + BTL_FILE_OBJECT;
         if (job->chara < 0x100) {
+#ifdef PORT
+            if (gPortVariant != 0) {
+                id = Bt4_ModelFile(job->chara, job->animChara, job->unk1C != 0);
+            } else
+#endif
             if (job->unk1C != 0) {
                 id = job->chara * 10 + job->animChara + (BTL_FILE_CHARA + 4);
             } else {
@@ -397,14 +422,27 @@ s32 BtlLoad_StepChara(BtlJob *job) {
 
     switch (job->state) {
     case 0:
+#ifdef PORT
+        if (gPortVariant != 0) {
+            model = Bt4_ModelFile(job->chara, job->costume, job->variant != 0);
+        } else
+#endif
         if (job->variant != 0) {
             model = job->chara * 10 + job->costume + (BTL_FILE_CHARA + 4);
         } else {
             model = job->chara * 10 + job->costume + BTL_FILE_CHARA;
         }
         if (job->modelOnly == 0) {
-            file8 = job->animChara * 10 + (BTL_FILE_CHARA + 8);
-            file9 = job->unk1C * 10 + (BTL_FILE_CHARA + 9);
+#ifdef PORT
+            if (gPortVariant != 0) {
+                file8 = 0x141E + job->animChara;
+                file9 = 0x1518 + job->unk1C;
+            } else
+#endif
+            {
+                file8 = job->animChara * 10 + (BTL_FILE_CHARA + 8);
+                file9 = job->unk1C * 10 + (BTL_FILE_CHARA + 9);
+            }
             voice = BTL_VOICE_FILE(job->voiceChara, gSaveData->flags & SAVE_FLAG_VOICE);
             BtlRes_Reload(BattleSide_GetModelSlot(job->side), model, file8, file9);
             res->bank = File_Request3(voice, res->bank, res->bankSize);
